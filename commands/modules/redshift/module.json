@@ -1,0 +1,190 @@
+{
+  "redshift": {
+    "create": {
+      "enabled": true,
+      "help": "Create Redshift Cluster",
+      "template_section": "databases",
+      "template_enabled": true,
+      "metadata_table": "metadata",
+      "create_aws_infra": true,
+      "id": "name",
+      "args": {
+        "name": {
+          "name": "Redshift Cluster Name",
+          "prompt": "Enter Name with no spaces, hyphens or special characters",
+          "required": true,
+          "default": "main"
+        },
+        "vpc_id": {
+          "name": "vpc_id",
+          "prompt": "Enter the name of the VPC the Redshift cluster is deployed to",
+          "required": true
+        },
+        "node_count": {
+          "name": "node_count",
+          "prompt": "Redshift node count",
+          "required": false,
+          "default": "1"
+        },
+        "node_type": {
+          "name": "node_type",
+          "prompt": "Redshift node type",
+          "required": false,
+          "default": "dc2.large"
+        },
+        "subnet_ids": {
+          "name": "subnet_ids",
+          "prompt": "Provide one or more RapidCloud subnet name to deploy the Redshift cluster in",
+          "required": true,
+          "default": ""
+        },
+        "tags": {
+          "name": "tags",
+          "prompt": "Provide a json string with tags you wish to apply, for example \"{'tag1':'value1','tag2':'value2'}\"",
+          "required": false,
+          "default": "{}"
+        },
+        "paramaters": {
+          "name": "paramaters",
+          "prompt": "Provide a json string with paramters you wish to apply to Redshift Serverless, for example \"{'tag1':'value1','tag2':'value2'}\"",
+          "required": false,
+          "default": "{}"
+        }
+      }
+    },
+    "create_serverless": {
+      "cloud": "aws",
+      "enabled": true,
+      "help": "Create a Redshift Serverless Cluster",
+      "template_section": "databases",
+      "template_enabled": true,
+      "timestamp": "2023-07-12 05:13:07.569494",
+      "cmd_id": "20230712051307266350",
+      "metadata_table": "metadata",
+      "create_aws_infra": true,
+      "id": "name",
+      "args": {
+        "name": {
+          "name": "Name",
+          "prompt": "Enter Name with no spaces, hyphens or special characters, this name will be used for both namespace and workgroup",
+          "required": true,
+          "default": ""
+        },
+        "vpc_id": {
+          "name": "vpc_id",
+          "prompt": "Enter the name of a Rapidcloud VPC the Redshift serverless is deployed to",
+          "required": true
+        },
+        "subnet_ids": {
+          "name": "subnet_ids",
+          "prompt": "Provide 3 or more RapidCloud subnet name the Redshift serverless is deployed to (3 Subnets in different AZ's are required",
+          "required": true,
+          "default": ""
+        },
+        "base_capacity": {
+          "name": "Base Capacity",
+          "prompt": "The base workgroup in Redshift Processing Units (default 32)",
+          "required": true,
+          "default": "32"
+        },
+        "set_usage_limit": {
+          "name": "Set Usage Limit",
+          "prompt": "Toggle on to apply a max usage limit to Redshift serverless",
+          "required": false,
+          "default": "false"
+        },
+        "max_capacity": {
+          "name": "Max Capacity",
+          "prompt": "The Max (upper usage limit) capacity of the workgroup in Redshift Processing Units (Ignored if Set usage limit is false)",
+          "required": false,
+          "default": "512"
+        },
+        "usage_period": {
+          "name": "Usage Period",
+          "prompt": "The period to apply the Usage Limit to [daily/weekly/*monthly]",
+          "required": false,
+          "default": "monthly"
+        },
+        "usage_type": {
+          "name": "Usage Type",
+          "prompt": "The type of Amazon Redshift Serverless usage to create a usage limit for [serverless-compute/cross-region-datasharing]",
+          "required": false,
+          "default": "serverless-compute"
+        },
+        "breach_action": {
+          "name": "Breach Action",
+          "prompt": "The action that Redshift Serverless takes when the limit is reached [emit-metric/deactivate/*log]",
+          "required": false,
+          "default": "log"
+        },
+        "tags": {
+          "name": "tags",
+          "prompt": "Provide a json string with tags you wish to apply, for example \"{'tag1':'value1','tag2':'value2'}\"",
+          "required": false,
+          "default": "{}"
+        }
+      }
+    },
+    "add_table": {
+      "enabled": true,
+      "help": "Add table to an existing Redshift cluster",
+      "template_section": "databases",
+      "template_enabled": true,
+      "create_aws_infra": true,
+      "id": "name",
+      "args": {
+        "name": {
+          "name": "Redshift Table Name",
+          "prompt": "Enter Name with no spaces or special characters",
+          "required": true,
+          "default": ""
+        },
+        "db_name": {
+          "name": "Redshift Cluster Name",
+          "prompt": "Enter Existing Redshift Cluster Name",
+          "required": true,
+          "default": ""
+        },
+        "primary_key": {
+          "name": "Primary Key",
+          "prompt": "Enter Table Primary Key",
+          "required": true,
+          "default": ""
+        },
+        "sort_key": {
+          "name": "Sort Key",
+          "prompt": "Enter Comma separated sort keys",
+          "required": false,
+          "default": ""
+        },
+        "dist_key": {
+          "name": "Distribution Key",
+          "prompt": "Enter Distribution Key",
+          "required": false,
+          "default": ""
+        },
+        "dist_style": {
+          "name": "Data Distribution Style",
+          "prompt": "Enter data distribution style { AUTO | EVEN | KEY | ALL }",
+          "required": false,
+          "default": "AUTO"
+        }
+      }
+    },
+    "generate-schema": {
+      "enabled": true,
+      "help": "",
+      "template_section": "",
+      "template_enabled": true
+    },
+    "load_sql": {
+      "cloud": "aws",
+      "enabled": true,
+      "help": "",
+      "template_section": "databases",
+      "template_enabled": true,
+      "timestamp": "2023-08-28 16:03:53.912800",
+      "cmd_id": "20230828160353657795"
+    }
+  }
+}

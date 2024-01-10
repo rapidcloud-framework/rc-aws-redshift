@@ -1,0 +1,159 @@
+data "aws_secretsmanager_secret" "{{ fqn }}" {
+    name = "{{ params['admin_password'] }}"
+}
+
+data "aws_secretsmanager_secret_version" "{{ fqn }}" {
+    secret_id = data.aws_secretsmanager_secret.{{ fqn }}.id
+}
+
+module "{{ fqn }}" {
+  source = "{{ module_source }}"
+  env  = "{{ env }}"
+  profile = "{{ profile }}"
+  fqn = "{{ fqn }}"
+  workload = "{{ workload }}"
+  cmd_id = "{{ cmd_id }}"
+  namespace_name   = replace("{{ profile }}-{{ params['name'] }}", "_", "-")
+  workgroup_name   = replace("{{ profile }}-{{ params['name'] }}", "_", "-")
+  database_name = "{{ params['database_name']}}"
+  admin_username = "{{ params['admin_username']}}"
+  admin_password = data.aws_secretsmanager_secret_version.{{ fqn }}.secret_string
+
+  base_capacity = {{ params['base_capacity'] | default(32) }}
+  set_usage_limit = "{{ params['set_usage_limit'] | default('false') }}"
+  usage_type = "{{ params['usage_type'] | default('serverless-compute') }}"
+  max_capacity = {{ params['max_capacity'] |  default(512) }}
+  usage_period = "{{ params['usage_period'] | default('monthly') }}"
+  breach_action = "{{ params['breach_action'] | default('log') }}"
+
+  vpc_id            = module.{{profile }}_aws_vpc_{{ params["vpc_id"] }}.id 
+  allowed_cidr    = [module.{{profile }}_aws_vpc_{{ params["vpc_id"] }}.cidr_block]
+  subnets = [
+  {%- if 'subnet_ids' in params.keys() and params["subnet_ids"] != ""  %}   
+  {% set subnet_list = params["subnet_ids"].split(',') -%}
+  {% for subnet in subnet_list -%}
+        module.{{ profile }}_aws_subnet_{{ subnet }}.id,
+  {% endfor -%}
+  {% endif -%}
+  ]
+  kms_key_id      = aws_kms_key.{{ profile }}.arn
+  log_exports = []
+  iam_roles = [module.{{ profile }}_glue_base.arn]
+
+  # needs newer provider
+  # config_param_datestyle = "{{ params['config_param_datestyle'] }}"
+  # config_param_enable_user_activity_logging  = "{{ params['config_param_enable_user_activity_logging'] }}"
+  # config_param_query_group = "{{ params['config_param_query_group'] }}"
+  # config_param_search_path = "{{ params['config_param_search_path'] }}"
+  # config_param_max_query_execution_time = "{{ params['config_param_max_query_execution_time'] }}"
+  # config_param_auto_mv = "{{ params['config_param_auto_mv'] }}"
+  # config_param_enable_case_sensitive_identifier = "{{ params['config_param_enable_case_sensitive_identifier'] }}"
+
+
+  tags = {
+    {% if params['parameters'] is defined -%}
+    {% for p, pv in params['tags'].items() -%}
+        "{{ p }}" = "{{  pv }}"
+    {% endfor -%}
+    {% endif -%}
+        "Name" = "{{ profile}}_{{ resource_name }}"
+        "env" = "{{ env }}"
+        "fqn" = "{{ fqn }}"
+        "profile" = "{{ name }}"
+        "workload" = "{{ workload }}"
+        "client" = "{{ client }}"
+        "author" = "rapid-cloud"
+  }
+}
+
+module "{{ fqn }}_lambda" {
+  source = "{{ module_source | replace('redshift_serverless', 'redshift_lambda') }}"
+  env  = "{{ env }}"
+  profile = "{{ profile }}"
+  fqn = "{{ fqn }}"
+  workload = "{{ workload }}"
+  cmd_id = "{{ cmd_id }}"
+  name   = "${replace("{{ fqn }}", "_", "-")}"
+  subnets = [
+    {%- if 'subnet_ids' in params.keys() and params["subnet_ids"] != ""  %}   
+    {% set subnet_list = params["subnet_ids"].split(',') %}
+    {% for subnet in subnet_list -%}
+    module.{{ profile }}_aws_subnet_{{ subnet }}.id,
+    {% endfor -%}
+    {% endif %}
+  ]
+  redshift_sg = module.{{fqn}}.sg_id
+  redshift_secret = aws_secretsmanager_secret.{{fqn}}_conn.arn
+
+
+  tags = {
+      {% if params['parameters'] is defined -%}
+      {% for p, pv in params['tags'].items() -%}
+          "{{ p }}" = "{{  pv }}"
+      {% endfor -%}
+      {% endif -%}
+      "Name" = "{{ profile}}_{{ resource_name }}"
+      "env" = "{{ env }}"
+      "fqn" = "{{ fqn }}"
+      "profile" = "{{ name }}"
+      "workload" = "{{ workload }}"
+      "client" = "{{ client }}"
+      "author" = "rapid-cloud"
+  }
+}
+
+resource "aws_secretsmanager_secret" "{{ fqn }}_conn" {
+  description     = "{{ fqn }} connection string"
+  kms_key_id      = aws_kms_key.{{ profile }}.arn
+  name            = "{{ profile }}/{{ resource_type }}/{{ resource_name }}/connection_string"
+  recovery_window_in_days  = 0
+}
+
+resource "aws_secretsmanager_secret_version" "{{ fqn }}_conn" {
+  secret_id     = aws_secretsmanager_secret.{{ fqn }}_conn.id
+  secret_string = jsonencode({
+	"host"="${module.{{ fqn }}.workgroup_address}",
+	"port"="${module.{{ fqn }}.workgroup_port}",
+    "user"="{{ params['admin_username']}}",
+    "password"="${data.aws_secretsmanager_secret_version.{{ fqn }}.secret_string}",
+    "dbname"="{{ params['database_name']}}",
+})
+  depends_on = [module.{{ fqn }}.workgroup_address]
+}
+
+data "aws_subnet" "{{ fqn }}_glue_subnet" {
+    {%- if 'subnet_ids' in params.keys() and params["subnet_ids"] != ""  %}   
+    {% set subnet_list = params["subnet_ids"].split(',') %}
+    id = module.{{ profile }}_aws_subnet_{{ subnet_list[0] }}.id
+    {% endif %}
+}
+
+#jdbc:redshift://workgroup-name.account-number.aws-region.redshift-serverless.amazonaws.com:5439/dev
+
+resource "aws_glue_connection" "{{ fqn }}_conn" {
+  connection_properties = {
+  JDBC_CONNECTION_URL = "jdbc:redshift://${module.{{ fqn }}.workgroup_address}:${module.{{ fqn }}.workgroup_port}/{{ params['database_name']}}"
+  USERNAME            = "{{ params['admin_username']}}"
+  PASSWORD            = data.aws_secretsmanager_secret_version.{{ fqn }}.secret_string
+  }
+
+  name = "{{ fqn }}"
+
+  physical_connection_requirements {
+    availability_zone      = data.aws_subnet.{{ fqn }}_glue_subnet.availability_zone
+    security_group_id_list = [module.{{ fqn }}.sg_id]
+    subnet_id              = data.aws_subnet.{{ fqn }}_glue_subnet.id
+  }
+}
+
+# output "{{ fqn }}_workspace_address" { 
+#   value = module.{{ fqn }}.workgroup_address 
+# }
+
+# output "{{ fqn }}_workgroup_port" { 
+#   value = module.{{ fqn }}.workgroup_port  
+# }
+
+# {% for k, v in params.items() %}
+# # {{k}} -> {{ v }}
+# {% endfor %}
